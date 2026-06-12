@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Katalog Pintar</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; line-height: 1.6; color: #333; background-color: #f4f7f6; }
+        section { border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 10px; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h3 { margin-top: 0; color: #2c3e50; }
+        .result { background: #f9f9f9; padding: 15px; margin-top: 10px; border-radius: 5px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f2f2f2; }
+        #catResult ul { list-style-type: none; padding-left: 20px; border-left: 2px solid #3498db; margin-top: 5px; }
+        #catResult li { margin: 5px 0; padding: 5px; background: #fff; border-bottom: 1px solid #eee; }
+        .input-group { display: flex; gap: 10px; }
+        input { padding: 8px; flex-grow: 1; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 20px; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h1>Katalog Pintar Dashboard</h1>
+
+    <section>
+        <h3>Login</h3>
+        <div class="input-group">
+            <input type="text" id="loginUser" placeholder="Username">
+            <input type="password" id="loginPass" placeholder="Password">
+            <button onclick="login()" style="background: #2c3e50;">Masuk</button>
+        </div>
+        <div id="loginResult" class="result">Hasil login akan muncul di sini...</div>
+    </section>
+
+    <section>
+        <h3>Daftar User</h3>
+        <div class="input-group">
+            <input type="text" id="regUser" placeholder="Username">
+            <input type="password" id="regPass" placeholder="Password">
+            <button onclick="register()" style="background: #e67e22;">Daftar</button>
+        </div>
+    </section>
+
+    <section>
+        <h3>Katalog Kategori</h3>
+        <button onclick="fetchCategories()" style="background: #3498db;">Tampilkan Kategori</button>
+        <div id="catResult" class="result"></div>
+    </section>
+
+    <section>
+        <h3>Daftar Barang (Sorted)</h3>
+        <button onclick="fetchSortedItems()" style="background: #3498db;">Tampilkan Barang</button>
+        <div id="sortedResult" class="result"></div>
+    </section>
+
+    <section>
+        <h3>Cari Barang</h3>
+        <div class="input-group">
+            <input type="number" id="searchId" placeholder="Masukkan ID Barang">
+            <button onclick="searchItem()" style="background: #3498db;">Cari</button>
+        </div>
+        <div id="searchResult" class="result" style="border-left: 4px solid #3498db;">Hasil pencarian...</div>
+    </section>
+
+    <section>
+        <h3>Pinjam Barang</h3>
+        <div class="input-group">
+            <input type="number" id="borrowId" placeholder="ID Barang untuk dipinjam">
+            <button onclick="borrowItem()" style="background: #27ae60;">Proses Pinjam</button>
+        </div>
+        <div id="borrowResult" class="result" style="border-left: 4px solid #27ae60;">Status antrean...</div>
+    </section>
+
+    <script>
+        function renderTree(categories) {
+            let html = '<ul>';
+            categories.forEach(cat => {
+                html += `<li><strong>${cat.nama_kategori}</strong>`;
+                if (cat.children && cat.children.length > 0) html += renderTree(cat.children);
+                html += '</li>';
+            });
+            html += '</ul>';
+            return html;
+        }
+
+        function renderTable(items) {
+            let html = `<table><tr><th>ID</th><th>Nama</th><th>Stok</th><th>Harga</th></tr>`;
+            items.forEach(item => {
+                html += `<tr><td>${item.id}</td><td>${item.nama_barang}</td><td>${item.stok}</td><td>Rp ${item.harga.toLocaleString()}</td></tr>`;
+            });
+            html += `</table>`;
+            return html;
+        }
+
+        async function login() {
+            const res = await fetch('/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: document.getElementById('loginUser').value, password: document.getElementById('loginPass').value}) });
+            const data = await res.json();
+            document.getElementById('loginResult').innerText = res.ok ? "Selamat datang, " + data.username : "Gagal: " + data.detail;
+        }
+
+        async function register() {
+            const res = await fetch('/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: document.getElementById('regUser').value, password: document.getElementById('regPass').value}) });
+            alert((await res.json()).message);
+        }
+
+        async function fetchCategories() {
+            const res = await fetch('/categories/tree');
+            document.getElementById('catResult').innerHTML = renderTree(await res.json());
+        }
+
+        async function fetchSortedItems() {
+            const res = await fetch('/items/sorted');
+            document.getElementById('sortedResult').innerHTML = renderTable(await res.json());
+        }
+
+        async function searchItem() {
+            const id = document.getElementById('searchId').value;
+            const res = await fetch(`/items/search/${id}`);
+            const data = await res.json();
+            document.getElementById('searchResult').innerHTML = res.ok ? `Nama: ${data.nama_barang}<br>Stok: ${data.stok}<br>Harga: Rp ${data.harga.toLocaleString()}` : "Barang tidak ditemukan";
+        }
+
+        async function borrowItem() {
+            const id = document.getElementById('borrowId').value;
+            const res = await fetch(`/items/queue?item_id=${id}`, { method: 'POST' });
+            document.getElementById('borrowResult').innerText = (await res.json()).message;
+        }
+    </script>
+</body>
+</html>
+
