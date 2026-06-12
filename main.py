@@ -17,7 +17,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # --- ROOT (Menampilkan HTML) ---
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 # --- MODELS ---
 class User(BaseModel):
